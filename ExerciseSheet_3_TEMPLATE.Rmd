@@ -1,7 +1,7 @@
 ---
 title: "Exercise #3"
 subtitle: "Fortgeschrittene Statistische Software für NF"
-author: "Name (Martrikelnummer), Name (Martrikelnummer), ..."
+author: "Anastasiia Petrus (12521274), Nils Przybylla (12734986)"
 date: "`r Sys.Date()`"
 output: distill::distill_article
 editor_options: 
@@ -77,6 +77,45 @@ a)  Load the `pixar_films` dataset into R. Clean the dataset by removing
     the possible values and what do they mean? Create a factor variable
     for the film rating. Why is this appropriate?
 
+```{r}
+library(readr)
+library(dplyr)
+
+pixar_films <- read_csv("pixar_films.csv")
+```
+
+```{r}
+pixar_films_clean <- pixar_films %>% filter(!is.na(film) & film != "")
+print(head(pixar_films_clean, 10))
+```
+
+From the dataset, we observe the following values:
+
+"G": General audiences — all ages admitted.
+
+"PG": Parental Guidance Suggested — some material may not be suitable
+for children.
+
+"N/A" or NA: Missing or unavailable rating (e.g., for very recent or
+unreleased films like Lightyear or Turning Red).
+
+```{r}
+pixar_films_clean <- pixar_films_clean %>%
+  mutate(film_rating_factor = factor(film_rating))
+```
+
+Creating a factor is appropriate because:
+
+1.  Categorical nature: Film ratings are categories (e.g., "G", "PG")
+    and not continuous or numeric values.
+
+2.  Useful for analysis: Factors are treated properly in statistical
+    models (e.g. regression) or in group-wise summaries (like counting
+    how many films per rating)
+
+3.  Ensures ordering if needed: We can specify levels to reflect an
+    order (e.g., "G" \< "PG"), if appropriate for some tasks.
+
 <!-- -->
 
 b)  Inspect the film titles manually. Which films form a film series? A
@@ -85,6 +124,35 @@ b)  Inspect the film titles manually. Which films form a film series? A
     e.g. "Despicable Me" and "Despicable Me 2". Create a dataframe which
     displays a list of the different series with the titles of the films
     and how many films belong to the series. Output the dataframe.
+
+```{r}
+library(dplyr)
+library(tibble)
+
+# Manually define the series and their films
+film_series_df <- tibble(
+  series = c("Toy Story", "Toy Story", "Toy Story", "Toy Story",
+             "Cars", "Cars", "Cars",
+             "Monsters", "Monsters",
+             "The Incredibles", "The Incredibles",
+             "Finding", "Finding"),
+  film = c("Toy Story", "Toy Story 2", "Toy Story 3", "Toy Story 4",
+           "Cars", "Cars 2", "Cars 3",
+           "Monsters, Inc.", "Monsters University",
+           "The Incredibles", "Incredibles 2",
+           "Finding Nemo", "Finding Dory")
+)
+
+film_series_summary <- film_series_df %>%
+  group_by(series) %>%
+  summarise(
+    titles = paste(film, collapse = ", "),
+    count = n(),
+    .groups = "drop"
+  )
+
+print(film_series_summary)
+```
 
 c)  Load the `public_response` dataframe into R. Convert the
     `cinema_score` variable into a factor while ensuring the factor
