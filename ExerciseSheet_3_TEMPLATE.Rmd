@@ -180,7 +180,8 @@ public_response$cinema_score <- factor(
 ```{r}
 library(dplyr)
 
-pixar_combined <- left_join(pixar_films_clean, public_response, by = "film")
+pixar_combined <- left_join(pixar_films_new, public_response, by = "film")
+print(head(pixar_combined, 10))
 ```
 
 d)  Choose one of the variables representing the public response and
@@ -265,20 +266,90 @@ a)  Go to <https://github.com/owid/owid-datasets/tree/master/datasets>
 b)  Download the dataset and track it in git.
 c)  Put the name / title of the dataset and a link to it below.
 
--   Dataset Name: ...
--   Link: <https://github.com/owid/owid-datasets/>...
+-   Dataset Name: **Food waste in the European Union - Europa (2010)**
+-   Link:
+    [https://github.com/owid/owid-datasets/tree/master/datasets/Food%20waste%20in%20the%20European%20Union%20-%20Europa%20(2010)#food-waste-in-the-european-union---europa-2010](https://github.com/owid/owid-datasets/tree/master/datasets/Food%20waste%20in%20the%20European%20Union%20-%20Europa%20(2010)#food-waste-in-the-european-union---europa-2010){.uri}
 
 d)  Come up with a (research) question you want to answer with the data
     and briefly explain why you believe this is an interesting question
     within one sentence. It should be a question that can be answered
     with the dataset and using R.
+
+Which European countries rank highest in food waste by sector
+(Manufacturing, Households, Other), and how do these rankings differ
+across sectors?"
+
+Why this question is interesting:
+
+It allows us to identify whether specific sectors are more responsible
+for food waste in different countries.
+
+Sector-specific insights can help guide targeted policy interventions
+(e.g., encouraging more sustainable household behavior or improving
+manufacturing efficiency).
+
+Comparing sectoral rankings can reveal structural or cultural
+differences in food systems between countries.
+
 e)  Use R to answer your chosen question. Please limit your analysis to
     the functions and techniques we have covered so far in the course.
     You are **not expected** to use advanced statistical models or
     external packages which haven't been introduced.
+
+```{r}
+library(tidyverse)
+
+food_waste <- read_csv("Food_waste_in_the_European_Union_2010.csv")
+
+food_waste_clean <- food_waste %>%
+  filter(Entity != "European Union")
+
+food_waste_long <- food_waste_clean %>%
+  pivot_longer(cols = c(`Manufacturing (Europa (2010))`, 
+                        `Households (Europa (2010))`, 
+                        `Other (Europa (2010))`),
+               names_to = "Sector", values_to = "Food_waste_tonnes")
+
+food_waste_long <- food_waste_long %>%
+  mutate(Sector = case_when(
+    str_detect(Sector, "Manufacturing") ~ "Manufacturing",
+    str_detect(Sector, "Households") ~ "Households",
+    str_detect(Sector, "Other") ~ "Other"
+  ))
+
+top10_by_sector <- food_waste_long %>%
+  group_by(Sector) %>%
+  slice_max(order_by = Food_waste_tonnes, n = 10) %>%
+  ungroup()
+```
+
 f)  Create a meaningful plot / figure with the dataset. Make sure to
     provide a figure caption (via the chunk options / Rmarkdown) and
     correctly label the figure.
+
+```{r}
+library(scales)
+
+ggplot(top10_by_sector, aes(x = reorder(Entity, Food_waste_tonnes), 
+                              y = Food_waste_tonnes, fill = Sector)) +
+  geom_col(color = "black") +
+  facet_wrap(~Sector, scales = "free") +
+  coord_flip() +
+  scale_y_continuous(labels = label_number(scale = 1e-6, suffix = "M")) +
+  labs(title = "Top 10 EU Countries by Food Waste per Sector (2010)",
+       x = "Country",
+       y = "Food Waste (tonnes)") +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+The analysis reveals that countries like Germany, the UK, France, Italy
+and Spain are consistently among the top contributors to food waste
+across all sectors. However, the UK dominates in household food waste
+and the sector Other, while Poland, the Netherlands and Italy only stand
+out in manufacturing. This variation suggests that sector-specific
+strategies are crucial, for example, consumer-focused education in the
+UK versus industrial regulation in Poland, the Netherlands and Italy.
 
 ## Final Note
 
