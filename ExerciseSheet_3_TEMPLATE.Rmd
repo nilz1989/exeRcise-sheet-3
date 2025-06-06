@@ -39,7 +39,7 @@ d)  Name 2 strengths and 2 weaknesses of git. (Don't forget to create a
 
     **Weaknesses:**
 
-    1.  Can be a bit complicated to use (esp. at first)
+    1.  Can be a bit complicated to use
     2.  Struggles with binary (i.e. non-text) files
 
 e)  Knit this exercise sheet. Some new files will automatically be
@@ -56,6 +56,7 @@ a)  Create a new repository on GitHub in your account named
     `exeRcise-sheet-3`. Make sure you create a **public repository** so
     we are able to see it for grading. Add the link to the repository
     below:
+https://github.com/nilz1989/exeRcise-sheet-3.git
 b)  Push your code to this new repository by copying and executing the
     snippet on github listed under
     `…or push an existing repository from the command line`.
@@ -129,31 +130,29 @@ b)  Inspect the film titles manually. Which films form a film series? A
     and how many films belong to the series. Output the dataframe.
 
 ```{r}
+library(stringr)
 library(dplyr)
-library(tibble)
 
-film_series_df <- tibble(
-  series = c("Toy Story", "Toy Story", "Toy Story", "Toy Story",
-             "Cars", "Cars", "Cars",
-             "Monsters", "Monsters",
-             "The Incredibles", "The Incredibles",
-             "Finding", "Finding"),
-  film = c("Toy Story", "Toy Story 2", "Toy Story 3", "Toy Story 4",
-           "Cars", "Cars 2", "Cars 3",
-           "Monsters, Inc.", "Monsters University",
-           "The Incredibles", "Incredibles 2",
-           "Finding Nemo", "Finding Dory")
-)
+film_series_alternative <- pixar_films_clean %>%
+  mutate(series = case_when(
+    (str_detect(film, regex("Toy|Story"))) ~ "Toy Story",
+    (str_detect(film, regex("Cars"))) ~ "Cars",
+    (str_detect(film, regex("Monsters"))) ~ "Monsters",
+    (str_detect(film, regex("Incredibles"))) ~ "Incredibles",
+    (str_detect(film, regex("Finding|Nemo|Dory"))) ~ "Finding",
+    
+    TRUE ~ film
+  ))
 
-film_series_summary <- film_series_df %>%
+film_series_summary_alternative <- film_series_alternative %>%
   group_by(series) %>%
   summarise(
     titles = paste(film, collapse = ", "),
     count = n(),
     .groups = "drop"
-  )
+  ) %>% filter(count >= 2)
 
-print(film_series_summary)
+print(head(film_series_summary_alternative, 10))
 ```
 
 c)  Load the `public_response` dataframe into R. Convert the
@@ -202,23 +201,19 @@ d)  Choose one of the variables representing the public response and
 We’ll use rotten_tomatoes because it provides a numeric score for the
 majority of films.
 
-```{r}
-pixar_series_scores <- left_join(pixar_combined, film_series_df, by = "film") %>%
-  filter(!is.na(series))
-```
-
 install.packages("viridis")
 
 ```{r}
-library(dplyr)
-library(ggplot2)
-library(viridis)
+filtered_series_data <- film_series_alternative %>%
+  semi_join(film_series_summary_alternative, by = "series")
 
-series_scores_ordered <- pixar_series_scores %>%
+series_scores_ordered_alternative <- pixar_combined %>%
+  inner_join(filtered_series_data %>% 
+  select(film, series), by = "film") %>%
   arrange(series, release_date) %>%
   mutate(film = factor(film, levels = unique(film)))
 
-ggplot(series_scores_ordered, aes(
+ggplot(series_scores_ordered_alternative, aes(
   x = series,
   y = rotten_tomatoes,
   fill = film
@@ -226,7 +221,7 @@ ggplot(series_scores_ordered, aes(
   geom_bar(
     stat = "identity",
     position = position_dodge(),
-    color = "black"  # black edges
+    color = "black"
   ) +
   labs(
     title = "Rotten Tomatoes Scores by Film Series",
@@ -317,10 +312,14 @@ food_waste_long <- food_waste_long %>%
     str_detect(Sector, "Other") ~ "Other"
   ))
 
-top10_by_sector <- food_waste_long %>%
-  group_by(Sector) %>%
-  slice_max(order_by = Food_waste_tonnes, n = 10) %>%
-  ungroup()
+top10_total <- food_waste_long %>% 
+  group_by(Entity) %>%
+  summarise(total_waste = sum(Food_waste_tonnes, na.rm = TRUE)) %>%
+  slice_max(total_waste, n=10) %>%
+  pull(Entity)
+
+top10_overall_df <- food_waste_long %>%
+  filter(Entity %in% top10_total)
 ```
 
 f)  Create a meaningful plot / figure with the dataset. Make sure to
@@ -330,26 +329,46 @@ f)  Create a meaningful plot / figure with the dataset. Make sure to
 ```{r}
 library(scales)
 
-ggplot(top10_by_sector, aes(x = reorder(Entity, Food_waste_tonnes), 
+ggplot(top10_overall_df, aes(x = reorder(Entity, -Food_waste_tonnes), 
                               y = Food_waste_tonnes, fill = Sector)) +
-  geom_col(color = "black") +
-  facet_wrap(~Sector, scales = "free") +
-  coord_flip() +
+  geom_col(position = "dodge", color = "black") +
   scale_y_continuous(labels = label_number(scale = 1e-6, suffix = "M")) +
   labs(title = "Top 10 EU Countries by Food Waste per Sector (2010)",
        x = "Country",
-       y = "Food Waste (tonnes)") +
+       y = "Food Waste (tonnes)",
+       fill = "Sector") +
   theme_minimal() +
-  theme(legend.position = "none")
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)
+)
 ```
 
-The analysis reveals that countries like Germany, the UK, France, Italy
-and Spain are consistently among the top contributors to food waste
-across all sectors. However, the UK dominates in household food waste
-and the sector Other, while Poland, the Netherlands and Italy only stand
-out in manufacturing. This variation suggests that sector-specific
-strategies are crucial, for example, consumer-focused education in the
-UK versus industrial regulation in Poland, the Netherlands and Italy.
+General observations:
+
+The United Kingdom is the top contributor to total food waste, with particularly high waist levels in the household sector.
+
+Germany and France also report substantial food waste, but more balance distribution across all three sectors. 
+
+Countries like Poland, Italy, and the Netherlands show especially high waisted in the manufacturing sector. 
+
+Spain stands out for having a relatively large contribution from the other category, compared to most other countries.
+
+Belgium, Romania, and Sweden round out the top 10 with overall lower waist levels, but still notable.
+
+Sectoral trends: 
+
+Households are the largest source of food waste across most countries, particularly in the UK, Germany, and France. 
+
+The manufacturing sector rank second overall, but leads in countries like Poland, the Netherlands and Italy.
+
+The other category typically contributes the least though countries like Spain and the UK show notable values here as well.
+
+Key takeaways:
+
+Household behavior plays a dominant role in food waste generation across Europe
+
+The industrial footprint of countries influences the proportion of waste from manufacturing.
+
+Sector-specific differences suggest the need for tailored food, waste reduction strategies for each country.
 
 ## Final Note
 
